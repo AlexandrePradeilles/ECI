@@ -52,9 +52,16 @@ class Spider20Minutes(scrapy.Spider):
             'journal_id': 1,
             'scraping_date': str(date)
         }
-
+        
+        
+        
+        
+class SpiderLiberation(scrapy.Spider):
+    None
 
 if __name__=='__main__':
     process = CrawlerProcess()
     process.crawl(Spider20Minutes)
-    process.start()
+    #process.start()
+    
+    
