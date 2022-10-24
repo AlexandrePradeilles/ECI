@@ -29,7 +29,7 @@ class Spider20Minutes(scrapy.Spider):
         article_date = response.xpath('//article[@id="main-content"]//div[@class="datetime"]//@datetime').get()
         body_html = response.xpath('//article[@id="main-content"]//div[@class="lt-endor-body content"]//div[@class="qiota_reserve content"]/p//text() | //article[@id="main-content"]//div[@class="lt-endor-body content"]//div[@class="qiota_reserve content"]/h2//text() | //article[@id="main-content"]//div[@class="lt-endor-body content mt1"]//p//text()').getall()
 
-        body = " ".join(body_html).replace("xa0", "")
+        body = " ".join(body_html).replace("\xa0", " ")
         
         image_url = response.xpath('//article[@id="main-content"]//div[@class="lt-endor-body content"]//div[@class="media-wrap"]//@src').get()
 
