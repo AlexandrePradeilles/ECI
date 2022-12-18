@@ -62,6 +62,6 @@ class SpiderLiberation(scrapy.Spider):
 if __name__=='__main__':
     process = CrawlerProcess()
     process.crawl(Spider20Minutes)
-    #process.start()
+    # process.start()
     
     
