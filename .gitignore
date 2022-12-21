@@ -1,4 +1,4 @@
 *.jsonl
-*.ipynb
+scrapping.ipynb
 *.json
 *.csv
