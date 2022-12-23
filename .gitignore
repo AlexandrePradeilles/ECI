@@ -2,3 +2,4 @@
 scrapping.ipynb
 *.json
 *.csv
+*.pt
