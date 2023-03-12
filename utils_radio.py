@@ -6,6 +6,12 @@ import pandas as pd
 import wget
 import torch
 from gql import gql
+from mutagen.mp3 import MP3
+import librosa
+import numpy as np
+import soundfile as sf
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 
 #-----------CONNEXION API RADIO FRANCE---------------
@@ -81,49 +87,46 @@ def download_audio(id, url):
     """
     take an url, download it in the audios folder, with the id as name
     """
-    response = wget.download(url, "./audios/"+str(id)+".mp3")
+    wget.download(url, "./audios/"+str(id)+".mp3")
 
 
 #--------------TRANSCRIPTION WITH WAVE2VEQ 2--------------
 
-def transcript (speech_array, processor, model, sr = 16_000, pas = 30, len_recouvrement = 5):
+def transcript (audio_file, processor, model, sr = 44100, frames = 30*44100, len_recouvrement = 5):
     """
     return the transcription of a speech_array, with a step of 30s
     """
-    i = 0
-    stop_time = 0
+    audio = MP3(audio_file)
+    duration = audio.info.length
+    First_transcript = True
     text = ""
-    while int((stop_time+pas-len_recouvrement)*sr) < len(speech_array):
-        if i == 0:
-            start_time = i*pas
+    start = 0
+    while start+frames < sr*duration :
+        if First_transcript:
+            start = 0
+            First_transcript = False
         else :
-            start_time = i*pas - len_recouvrement
-        stop_time = start_time+pas
-        start_sample = int(start_time * sr)
-        stop_sample = int(stop_time * sr)
-        short_speech_array = speech_array[start_sample:stop_sample]
-        
-        input = processor(short_speech_array, sampling_rate=16_000, return_tensors="pt", padding=True)
-
-        with torch.no_grad():
-            logits = model(input.input_values, attention_mask=input.attention_mask).logits
-
+            start += frames - sr*len_recouvrement
+        speech_array, sampling_rate = sf.read(audio_file, frames = frames, start = start)
+        speech_array = speech_array.T
+        speech_array = librosa.resample(np.asarray(speech_array), sampling_rate, 16_000)
+        input_values = processor(speech_array, sampling_rate=16_000, return_tensors="pt", padding=True).input_values
+        logits = model(input_values[0]).logits
         predicted_ids = torch.argmax(logits, dim=-1)
         predicted_sentences = processor.batch_decode(predicted_ids)[0]
         text += predicted_sentences + " "
-        i+=1
-    
-    start_time += pas - len_recouvrement
-    start_sample = int(start_time * sr)
-    stop_sample = len(speech_array)
-    short_speech_array = speech_array[start_sample:stop_sample]
-    input = processor(short_speech_array, sampling_rate=16_000, return_tensors="pt", padding=True)
-    with torch.no_grad():
-        logits = model(input.input_values, attention_mask=input.attention_mask).logits
+
+    if First_transcript:
+        start = 0
+    else :
+        start += frames - sr*len_recouvrement
+    speech_array, sampling_rate = sf.read(audio_file, start = start, stop = sr*duration)
+    speech_array = speech_array.T
+    speech_array = librosa.resample(np.asarray(speech_array), sampling_rate, 16_000)
+    input_values = processor(speech_array, sampling_rate=16_000, return_tensors="pt", padding=True).input_values
+    logits = model(input_values[0]).logits
     predicted_ids = torch.argmax(logits, dim=-1)
-    predicted_sentences = processor.batch_decode(predicted_ids)
+    predicted_sentences = processor.batch_decode(predicted_ids)[0]
     text += predicted_sentences
+    
     return text
-
-
-#transcript (speech_array)
