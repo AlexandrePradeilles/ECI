@@ -25,6 +25,7 @@ model = Wav2Vec2ForCTC.from_pretrained(MODEL_ID)
 df['Transcript'] = pd.Series(dtype='string')
 
 for i in range (df.shape[0]):
+    print(f'{100*i/df.shape[0]} % done')
     id, audio_url = df.loc[i, 'Id'], df.loc[i, 'Url']
     if str(id)+'.mp3' not in os.listdir('./audios'):
         download_audio(str(id), str(url)) #download in audios folder
