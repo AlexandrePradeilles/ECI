@@ -92,41 +92,20 @@ def download_audio(id, url):
 
 #--------------TRANSCRIPTION WITH WAVE2VEQ 2--------------
 
-def transcript (audio_file, processor, model, sr = 44100, frames = 30*44100, len_recouvrement = 5):
-    """
-    return the transcription of a speech_array, with a step of 30s
-    """
+def transcript(audio_file, processor, model, off_len = 30, duration_len = 35):
+
+    text = ""
     audio = MP3(audio_file)
     duration = audio.info.length
-    First_transcript = True
-    text = ""
-    start = 0
-    while start+frames < sr*duration :
-        if First_transcript:
-            start = 0
-            First_transcript = False
-        else :
-            start += frames - sr*len_recouvrement
-        speech_array, sampling_rate = sf.read(audio_file, frames = frames, start = start)
-        speech_array = speech_array.T
-        speech_array = librosa.resample(np.asarray(speech_array), sampling_rate, 16_000)
-        input_values = processor(speech_array, sampling_rate=16_000, return_tensors="pt", padding=True).input_values
-        logits = model(input_values[0]).logits
+    number_windows = int(duration//off_len)
+    for i in range(number_windows):
+        speech_array, _ = librosa.load(audio_file, sr=16_000, offset=off_len*i, duration=duration_len)
+        input = processor(speech_array, sampling_rate=16_000, return_tensors="pt", padding=True)
+        with torch.no_grad():
+            logits = model(input.input_values, attention_mask=input.attention_mask).logits
         predicted_ids = torch.argmax(logits, dim=-1)
         predicted_sentences = processor.batch_decode(predicted_ids)[0]
+        print("Transcription: {:.2f}%".format(100*i/number_windows))
         text += predicted_sentences + " "
-
-    if First_transcript:
-        start = 0
-    else :
-        start += frames - sr*len_recouvrement
-    speech_array, sampling_rate = sf.read(audio_file, start = start, stop = sr*duration)
-    speech_array = speech_array.T
-    speech_array = librosa.resample(np.asarray(speech_array), sampling_rate, 16_000)
-    input_values = processor(speech_array, sampling_rate=16_000, return_tensors="pt", padding=True).input_values
-    logits = model(input_values[0]).logits
-    predicted_ids = torch.argmax(logits, dim=-1)
-    predicted_sentences = processor.batch_decode(predicted_ids)[0]
-    text += predicted_sentences
     
     return text
