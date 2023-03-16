@@ -18,46 +18,45 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 
 
 
-def query_podcast(url):
+def query_podcast(url, first):
     """
     input: select the radio you want to hear, start and end determine the time during which we look for audio
     output: the query formated, ready to be use
     """
     query = gql(
         """
-    {
-        showByUrl(
-            url: "%s"
+    {diffusionsOfShowByUrl(
+        url: "%s"
+        first: %s
         ) {
-            diffusionsConnection {
-                edges {
-                    node {
-                        id
+            edges {
+                node {
+                    id
+                    title
+                    url
+                    published_date
+                    podcastEpisode {
+                        url
                         title
-                        published_date
-                        podcastEpisode {
-                            url
-                            title
-                        }
                     }
                 }
             }
         }
     }
-    """ %url
+    """ %(url, first)
     )
     return query
 
-def store_data_radio(client, url):
+def store_data_radio(client, url, first):
     """
     create a dataframe of radio between start and end, with title, resume, date, url, duration
     input: start and end, defining the time window of study
     output: a dataframe with all information needed
     """
     First_iter = True
-    query = query_podcast(url)
+    query = query_podcast(url, first)
     result = client.execute(query)
-    data = result["showByUrl"]["diffusionsConnection"]["edges"]
+    data = result["diffusionsOfShowByUrl"]["edges"]
     for i in range(len(data)):
         #tester s'il y a des émissions
         if data[i] == {}:
