@@ -1,0 +1,5 @@
+*.npy
+*.parquet
+*.pt
+__pycache__
+source/scrapping.ipynb
