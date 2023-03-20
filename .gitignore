@@ -3,3 +3,6 @@ scrapping.ipynb
 *.json
 *.csv
 *.pt
+*.parquet
+*.npy
+__pycache__

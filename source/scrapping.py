@@ -20,7 +20,7 @@ class Spider20Minutes(scrapy.Spider):
     start_urls = ['https://www.20minutes.fr/archives/20' + str(i) for i in range(10, 23)] #+ ['https://www.20minutes.fr/archives/200' + str(i) for i in range(6, 10)]
     
     custom_settings = {
-        'FEED_URI': 'data/newspaper_2.jsonl',
+        'FEED_URI': '../data/newspaper_2.jsonl',
         'FEED_FORMAT': 'jsonl',
         'FEED_EXPORT_ENCODING': 'utf-8'
     }
@@ -66,7 +66,7 @@ class Spider20Minutes(scrapy.Spider):
             'scraping_date': str(date)
         }
         
-        
+
         
         
 class SpiderLiberation(scrapy.Spider):
