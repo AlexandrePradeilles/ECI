@@ -12,12 +12,15 @@ import numpy as np
 # data2019 = pd.read_parquet('data/predictions_body_2019.parquet')
 
 # data = pd.concat([data2022, data2021, data2020, data2019])
-data_20 = pd.read_parquet("data/20minutes.parquet")
-data_20["newspaper"] = "20 minutes"
-data_libe = pd.read_parquet("data/liberation.parquet")
-data_libe["newspaper"] = "Liberation"
+@st.cache_data
+def get_data():
+    data_20 = pd.read_parquet("data/20minutes.parquet")
+    data_20["newspaper"] = "20 minutes"
+    data_libe = pd.read_parquet("data/liberation.parquet")
+    data_libe["newspaper"] = "Liberation"
 
-data = pd.concat([data_20, data_libe])
+    data = pd.concat([data_20, data_libe])
+    return data
 
 dict_thres = {"20 minutes": 0.2, "Liberation": 0.26}
 dict_classes = {'planete': 0, 'sport': 1, 'economie': 2, 'arts-stars': 3, 'high-tech': 4, 'politique': 5, 'monde': 6, 'societe': 7, 'faits_divers': 8, 'sante': 9, 'justice': 10}
@@ -37,6 +40,8 @@ st.set_page_config(
     layout="wide"
 )
 # st.sidebar.title('ECI - Menu')
+
+data = get_data()
 
 def main():
     # Note that page title/favicon are set in the __main__ clause below,
