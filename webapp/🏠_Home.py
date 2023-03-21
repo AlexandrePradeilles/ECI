@@ -6,17 +6,11 @@ import numpy as np
 
 ### IMPORT DATA ###
 
-# data2022 = pd.read_parquet('data/predictions_body_2022.parquet')
-# data2021 = pd.read_parquet('data/predictions_body_2021.parquet')
-# data2020 = pd.read_parquet('data/predictions_body_2020.parquet')
-# data2019 = pd.read_parquet('data/predictions_body_2019.parquet')
-
-# data = pd.concat([data2022, data2021, data2020, data2019])
 @st.cache_data
 def get_data():
-    data_20 = pd.read_parquet("data/20minutes.parquet")
+    data_20 = pd.read_parquet("../data/20minutes.parquet")
     data_20["newspaper"] = "20 minutes"
-    data_libe = pd.read_parquet("data/liberation.parquet")
+    data_libe = pd.read_parquet("../data/liberation.parquet")
     data_libe["newspaper"] = "Liberation"
 
     data = pd.concat([data_20, data_libe])
@@ -46,40 +40,41 @@ data = get_data()
 def main():
     # Note that page title/favicon are set in the __main__ clause below,
     # so they can also be set through the mega multipage app (see ../pandas_app.py).
-    newspaper = st.selectbox(
-            "Select a newspaper", (data.newspaper.unique())
-            )
-    st.write("Global distribution")
-    if newspaper != st.session_state.old_np:
-        st.session_state.distribution = display_distribution(data, newspaper)
-        st.session_state.old_np = newspaper
-    else:
-        display_precomputed_distribution(st.session_state.distribution)
-    col1, col2 = st.columns(2)
-
-    with col1:
-        max_date = datetime.strptime(data.month_date.max(), '%Y-%m').date()
-        min_date = datetime.strptime(data.month_date.min(), '%Y-%m').date()
-        start_date = st.date_input(
-            "Select start date",
-            min_date,
+    tab1, tab2, tab3, tab4= st.tabs(["Menu", "Méthodologie", "Global distribution", "Evolution over time"])
+    
+    with tab3:    
+        newspaper = st.selectbox(
+                "Select a newspaper", (data.newspaper.unique())
+                )
+        st.write("Global distribution")
+        if newspaper != st.session_state.old_np:
+            st.session_state.distribution = display_distribution(data, newspaper)
+            st.session_state.old_np = newspaper
+        else:
+            display_precomputed_distribution(st.session_state.distribution)
+       
+        
+    with tab4:  
+        col1, col2 = st.columns(2)
+        with col1:
+            max_date = datetime.strptime(data.month_date.max(), '%Y-%m').date()
+            min_date = datetime.strptime(data.month_date.min(), '%Y-%m').date()
+            dates = st.slider(
+            "Select date:",
             min_value=min_date,
+            value=(min_date, max_date),
             max_value=max_date,
-        )
-        end_date = st.date_input(
-            "Select end date",
-            max_date,
-            min_value=start_date,
-            max_value=max_date,
-        )
+            format="MMM, YYYY")
+            
+            start_date, end_date = dates
 
-    with col2:
-        categories = st.selectbox(
-            "Select the category", (data.columns[3:-1] )
-            )
-        
-    display_chart(data, start_date,end_date, categories, newspaper)
-        
+        with col2:
+            categories = st.selectbox(
+                "Select the category", (data.columns[3:-1] )
+                )
+            
+        display_chart(data, start_date,end_date, categories, newspaper)
+            
 def display_chart(data, start_date, end_date, categories, newspaper):
         df = data[["month_date", categories]][(data[categories] >= dict_thres[newspaper]) & (data["newspaper"] == newspaper)].groupby(["month_date"]).count() / data[["month_date", categories]][data["newspaper"] == newspaper].groupby(["month_date"]).count()
         df.index = pd.DatetimeIndex(df.index)
