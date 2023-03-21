@@ -27,14 +27,13 @@ print("call API: done")
 MODEL_ID = "jonatasgrosman/wav2vec2-large-xlsr-53-french"
 processor = Wav2Vec2Processor.from_pretrained(MODEL_ID)
 model = Wav2Vec2ForCTC.from_pretrained(MODEL_ID)
-#df['Transcript'] = pd.Series(dtype='string')
 
 df_trans = pd.read_csv("./transcript.csv", delimiter = ",", header = 0)
 
 for i in range (df_query.shape[0]):
     id, titre, date, audio_url = df_query.iloc[i]['Id'], df_query.iloc[i]['Titre'], df_query.iloc[i]['Date'], df_query.iloc[i]['Url']
     #test if the audio is already transcripted
-    if id in df_trans["Id"]:
+    if id in df_trans["Id"].values:
         index_trans = df_trans.loc[df_trans["Id"] == id].index[0]
         if not pd.isnull(df_trans.loc[index_trans, 'Transcript']):
             continue
@@ -46,7 +45,7 @@ for i in range (df_query.shape[0]):
     audio_file = "./audios/"+str(id)+".mp3"
     text = transcript(audio_file, processor, model)
     
-    if id in df_trans["Id"]:
+    if id in df_trans["Id"].values:
         index_trans = df_trans.loc[df_trans["Id"] == id].index[0]
         df_trans.loc[index_trans, 'Transcript'] = text
     else :
