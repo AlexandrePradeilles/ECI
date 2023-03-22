@@ -6,3 +6,4 @@ scrapping.ipynb
 *.parquet
 *.npy
 __pycache__
+t.ipynb
