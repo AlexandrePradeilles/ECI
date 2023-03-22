@@ -1,5 +1,7 @@
 *.npy
 *.parquet
 *.pt
+*.jsonl
+*.jsonl.zip
 __pycache__
 source/scrapping.ipynb

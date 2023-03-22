@@ -11,6 +11,7 @@ body_list = data["body"].values
 cat_list = data ["predicted_classe"].values
 
 def main():
+    st.title("Data annotation")
 
     # Note that page title/favicon are set in the __main__ clause below,
     # so they can also be set through the mega multipage app (see ../pandas_app.py).
@@ -30,9 +31,8 @@ def main():
         np.save("annotations.npy",st.session_state.annotation , allow_pickle=True)
         st.title("**:red[END OF DATAFRAME]**")
     
-    
-    st.write(body_list[st.session_state.id])
-    st.markdown('**:red[{}]**'.format(cat_list[st.session_state.id]))
+    st.write(body_list[len(st.session_state['annotation'])])
+    st.markdown('**:red[{}]**'.format(cat_list[len(st.session_state['annotation'])]))
     
     col1, col2, col3, col4, col5 = st.columns(5)
 
@@ -60,6 +60,9 @@ def main():
         if st.button("Update"):
             pass
 
+        if st.button("Update"):
+            pass
+
         if st.button("Save"):
             np.save("annotations.npy",st.session_state.annotation , allow_pickle=True)
             st.write("**:red[You can now leave the session]**")
@@ -71,9 +74,9 @@ def main():
         
     
 ### INTRODUCTION ###
-st.title("Data annotation")
+# st.title("Data annotation")
 main()
-st.markdown("""*:grey[Compteur : {}]*""".format(len(st.session_state['annotation'])))
+# st.markdown("""*:grey[Compteur : {}]*""".format(len(st.session_state['annotation'])))
 
 
 
