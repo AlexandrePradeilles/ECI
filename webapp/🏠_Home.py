@@ -40,12 +40,12 @@ data = get_data()
 def main():
     # Note that page title/favicon are set in the __main__ clause below,
     # so they can also be set through the mega multipage app (see ../pandas_app.py).
-    tab1, tab2, tab3, tab4= st.tabs(["Menu", "Méthodologie", "Global distribution", "Evolution over time"])
+    tab1, tab2, tab3, tab4= st.tabs(["Menu", "Methodologie", "Global distribution", "Evolution over time"])
     
     with tab3:    
         newspaper = st.selectbox(
-                "Select a newspaper", (data.newspaper.unique())
-                )
+                "Select a newspaper", (data.newspaper.unique()),
+                key=1)
         st.write("Global distribution")
         if newspaper != st.session_state.old_np:
             st.session_state.distribution = display_distribution(data, newspaper)
@@ -55,35 +55,55 @@ def main():
        
         
     with tab4:  
+        max_date = datetime.strptime(data.month_date.max(), '%Y-%m').date()
+        min_date = datetime.strptime(data.month_date.min(), '%Y-%m').date()
+        dates = st.slider(
+        "Select date:",
+        min_value=min_date,
+        value=(min_date, max_date),
+        max_value=max_date,
+        format="MMM, YYYY")
+            
+        start_date, end_date = dates
         col1, col2 = st.columns(2)
         with col1:
-            max_date = datetime.strptime(data.month_date.max(), '%Y-%m').date()
-            min_date = datetime.strptime(data.month_date.min(), '%Y-%m').date()
-            dates = st.slider(
-            "Select date:",
-            min_value=min_date,
-            value=(min_date, max_date),
-            max_value=max_date,
-            format="MMM, YYYY")
-            
-            start_date, end_date = dates
-
-        with col2:
-            categories = st.selectbox(
-                "Select the category", (data.columns[3:-1] )
+           newspaper = st.selectbox(
+                "Select a newspaper", (data.newspaper.unique()),
+                key=2
                 )
-            
+        st.write("Global distribution")
+        with col2:
+            categories = st.multiselect(
+                "Select the category", data.columns[3:-1].to_list()
+                )
+        
         display_chart(data, start_date,end_date, categories, newspaper)
             
 def display_chart(data, start_date, end_date, categories, newspaper):
-        df = data[["month_date", categories]][(data[categories] >= dict_thres[newspaper]) & (data["newspaper"] == newspaper)].groupby(["month_date"]).count() / data[["month_date", categories]][data["newspaper"] == newspaper].groupby(["month_date"]).count()
-        df.index = pd.DatetimeIndex(df.index)
-        df = df[df.index <= pd.to_datetime(end_date)]
-        final_df = df[df.index >= pd.to_datetime(start_date)]
-        fig = px.line(final_df,
-                      labels= {"month_date" : "Year",
-                               "value" : "Rate of total publications (%)"})
-        fig.update_layout(showlegend=False)
+        data_multilines = 0
+        if len(categories) == 0:
+            categories = data.columns[3:-1].to_list()
+        if type(categories) == str:
+            categories = [categories]
+        for categorie in categories:
+            df = data[["month_date", categorie]][(data[categorie] >= dict_thres[newspaper]) & (data["newspaper"] == newspaper)].groupby(["month_date"]).count() / data[["month_date", categorie]][data["newspaper"] == newspaper].groupby(["month_date"]).count()
+            df.index = pd.DatetimeIndex(df.index)
+            df["cat"] = categorie
+            df = df.rename({categorie : "value"}, axis=1)
+            if type(data_multilines) == int:
+                data_multilines = df
+            else: 
+                data_multilines = pd.concat([data_multilines,df],axis=0)
+        
+        data_multilines = data_multilines[data_multilines.index <= pd.to_datetime(end_date)]
+        data_multilines = data_multilines[data_multilines.index >= pd.to_datetime(start_date)]
+        
+        fig = px.line(data_multilines,
+                    labels= {"month_date" : "Year",
+                               "value" : "Rate of total publications (%)"},
+                    color = "cat"
+                      )
+        fig.update_layout(showlegend=True)
         st.plotly_chart(fig)
 
 def extract_class(probabilities, th=0.05):
