@@ -1,13 +1,13 @@
 import streamlit as st
 import pandas as pd
 from datetime import date, datetime
-import plotly.express as plt
 import numpy as np
 
 ### IMPORT DATA ###
 
-data = pd.read_parquet('multi_classe_20perc.parquet')
-body_list = data ["body"].values
+#data = pd.read_parquet('multi_classe_20perc.parquet')
+data = pd.read_parquet('zero_shot.parquet')
+body_list = data["body"].values
 cat_list = data ["predicted_classe"].values
 
 def main():
@@ -24,9 +24,11 @@ def main():
         st.session_state['annotation'] = list(annotation)
     
     if 'id' not in st.session_state:
-         st.session_state['id'] = len(annotation)
-         
+         st.session_state['id'] = len(annotation) + 100
     
+    if st.session_state['id'] >= data.shape[0]:
+        np.save("annotations.npy",st.session_state.annotation , allow_pickle=True)
+        st.title("**:red[END OF DATAFRAME]**")
     
     
     st.write(body_list[st.session_state.id])
@@ -55,6 +57,9 @@ def main():
             st.session_state['id']+=1
     
     with col5:
+        if st.button("Update"):
+            pass
+
         if st.button("Save"):
             np.save("annotations.npy",st.session_state.annotation , allow_pickle=True)
             st.write("**:red[You can now leave the session]**")
@@ -63,8 +68,7 @@ def main():
             st.session_state['id']-=1
             st.session_state.annotation.pop()
             
-        if st.button("+10000"):
-            st.session_state['id']+=10000
+        
     
 ### INTRODUCTION ###
 st.title("Data annotation")
