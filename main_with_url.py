@@ -4,6 +4,8 @@ import os
 import pandas as pd
 from datetime import datetime
 import random
+import numpy as np
+import multiprocessing as mp
 from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
 from utils_radio import download_audio, transcript
 import warnings
@@ -16,16 +18,15 @@ MODEL_ID = "jonatasgrosman/wav2vec2-large-xlsr-53-french"
 processor = Wav2Vec2Processor.from_pretrained(MODEL_ID)
 model = Wav2Vec2ForCTC.from_pretrained(MODEL_ID)
 
-df_trans = pd.read_csv("./transcript.csv", delimiter = ",", header = 0)
 df_url = pd.read_csv("./7-9_URLs.csv", delimiter = ",", header = 0)
 
-for i in range (32, 501):
+def main_with_url(i):
     i = i-32
     if (i%5) == 0:
         r = random.randint(0, 4)
         i += r
     else:
-        continue
+        return
 
     audio_url = df_url["URL"][i]
     date = str(audio_url[54:64])
@@ -33,10 +34,11 @@ for i in range (32, 501):
     date = int(date_obj.timestamp())
     id = i
     titre = "inconnu"
+    df_trans = pd.read_csv("./transcript.csv", delimiter = ",", header = 0)
     if date in df_trans["Date"].values:
         index_trans = df_trans.loc[df_trans["Date"] == date].index[0]
         if not pd.isnull(df_trans.loc[index_trans, 'Transcript']):
-            continue
+            return
     
     #make transcription
     print("transcription: start")
@@ -59,3 +61,9 @@ for i in range (32, 501):
         os.remove("./audios/"+str(id)+'.mp3')
     print(70*"=")
     print("Audios: {:.2f}%".format(100*i/470))
+
+
+all_index = np.arange(32, 1488)
+num_processes = 20
+with mp.Pool(num_processes) as pool:
+    results = pool.map(main_with_url, all_index)
