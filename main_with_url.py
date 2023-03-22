@@ -46,7 +46,8 @@ def main_with_url(i):
         download_audio(str(id), str(audio_url)) #download in audios folder
     audio_file = "./audios/"+str(id)+".mp3"
     text = transcript(audio_file, processor, model)
-    
+    #reload to be sure to have the last version
+    df_trans = pd.read_csv("./transcript.csv", delimiter = ",", header = 0)
     if date in df_trans["Date"].values:
         index_trans = df_trans.loc[df_trans["Date"] == date].index[0]
         df_trans.loc[index_trans, 'Transcript'] = text
@@ -60,7 +61,6 @@ def main_with_url(i):
     if (not pd.isnull(df_trans.loc[index_trans, 'Transcript'])) and (str(id)+'.mp3' in os.listdir('./audios')):
         os.remove("./audios/"+str(id)+'.mp3')
     print(70*"=")
-    print("Audios: {:.2f}%".format(100*i/470))
 
 
 all_index = np.arange(32, 1488)
