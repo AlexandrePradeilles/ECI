@@ -91,7 +91,7 @@ def download_audio(id, url):
 
 #--------------TRANSCRIPTION WITH WAVE2VEQ 2--------------
 
-def transcript(audio_file, processor, model, off_len = 30, duration_len = 35):
+def transcript(audio_file, processor, model, off_len = 30, duration_len = 31):
 
     text = ""
     audio = MP3(audio_file)
