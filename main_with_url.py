@@ -40,12 +40,11 @@ def transcription(index):
 def transcription_on_list(batch_list):
     output_dict = collections.defaultdict()
     for batch in batch_list:
-        output_dict[batch] = transcription(batch)
-    #save it in csv
-    my_dict = dict(output_dict)
-    df = pd.DataFrame(my_dict)
-    df = df.transpose()
-    df.to_csv('./saves/'+str(batch)+'.csv', index=False)
+        output = transcription(batch)
+        output_dict[batch] = output
+        #save it in csv
+        df = pd.DataFrame.from_dict([output])
+        df.to_csv('./saves/'+str(batch)+'.csv', index=False)
     return output_dict
 
 all_index = np.arange(32, 1488)
