@@ -16,13 +16,13 @@ warnings.filterwarnings("ignore")
 #-----------PIPELINE-----------------------
 
 #DOWNLOAD AUDIO FROM URL, MAKE TRANSCRIPTION, DELETE AUDIO
-MODEL_ID = "jonatasgrosman/wav2vec2-large-xlsr-53-french"
-processor = Wav2Vec2Processor.from_pretrained(MODEL_ID)
-model = Wav2Vec2ForCTC.from_pretrained(MODEL_ID)
 
 df_url = pd.read_csv("./7-9_URLs.csv", delimiter = ",", header = 0)
 
 def transcription(index):
+    MODEL_ID = "jonatasgrosman/wav2vec2-large-xlsr-53-french"
+    processor = Wav2Vec2Processor.from_pretrained(MODEL_ID)
+    model = Wav2Vec2ForCTC.from_pretrained(MODEL_ID)
     i = index
     audio_url = df_url["URL"][i]
     date = str(audio_url[54:64])
@@ -55,7 +55,7 @@ def transcription_on_list(batch_list):
     return output_dict
 
 #create list of batches with index of url to be transcripted
-num_process = 20
+num_process = 4
 all_index = np.arange(32, 1488)
 all_my_batches = []
 for index in all_index:
@@ -73,9 +73,9 @@ for i in range (len(all_my_batches)):
 
 ### MultiProcess approach :
 # We start by creating sub list of batches, here 20 sub list
-#splitted_target = np.array_split(all_my_batches, 20)
+#splitted_target = np.array_split(all_my_batches, num_process)
 # Here we use 20 processes in the pool
-sub_pool = mp.Pool(processes=20)
+sub_pool = mp.Pool(processes=num_process)
 sub_results = sub_pool.starmap(transcription_on_list, zip(splitted_target))
 sub_pool.close()
 sub_pool.join()

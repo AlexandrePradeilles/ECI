@@ -9,8 +9,6 @@ import torch
 from gql import gql
 from mutagen.mp3 import MP3
 import librosa
-import numpy as np
-import soundfile as sf
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -108,8 +106,8 @@ def transcript(audio_file, processor, model, off_len = 30, duration_len = 31):
         predicted_sentences = processor.batch_decode(predicted_ids)[0]
         #save in pickle file
         output = {"id": id, "text": predicted_sentences}
-        with open('./saves_pickle/partial_text.pickle', 'ab') as f:
-            pickle.dump(output, f)
+        #with open('./saves_pickle/partial_text.pickle', 'ab') as f:
+        #    pickle.dump(output, f)
         print("Transcription: {:.2f}%".format(100*i/number_windows))
         text += predicted_sentences + " "
     
