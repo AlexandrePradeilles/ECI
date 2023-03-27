@@ -2,6 +2,7 @@
 
 #pip install huggingsound
 
+import pickle
 import pandas as pd
 import wget
 import torch
@@ -97,6 +98,7 @@ def transcript(audio_file, processor, model, off_len = 30, duration_len = 31):
     audio = MP3(audio_file)
     duration = audio.info.length
     number_windows = int(duration//off_len)
+    id = audio_file[9:-4]
     for i in range(number_windows):
         speech_array, _ = librosa.load(audio_file, sr=16_000, offset=off_len*i, duration=duration_len)
         input = processor(speech_array, sampling_rate=16_000, return_tensors="pt", padding=True)
@@ -104,6 +106,10 @@ def transcript(audio_file, processor, model, off_len = 30, duration_len = 31):
             logits = model(input.input_values, attention_mask=input.attention_mask).logits
         predicted_ids = torch.argmax(logits, dim=-1)
         predicted_sentences = processor.batch_decode(predicted_ids)[0]
+        #save in pickle file
+        output = {"id": id, "text": predicted_sentences}
+        with open('./saves_pickle/partial_text.pickle', 'ab') as f:
+            pickle.dump(output, f)
         print("Transcription: {:.2f}%".format(100*i/number_windows))
         text += predicted_sentences + " "
     
