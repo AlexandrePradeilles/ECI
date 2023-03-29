@@ -67,8 +67,9 @@ def main():
         start_date, end_date = dates
         col1, col2 = st.columns(2)
         with col1:
-           newspaper = st.selectbox(
+           newspapers = st.multiselect(
                 "Select a newspaper", (data.newspaper.unique()),
+                default=(data.newspaper.unique()),
                 key=2
                 )
         st.write("Global distribution")
@@ -77,34 +78,86 @@ def main():
                 "Select the category", data.columns[3:-1].to_list()
                 )
         
-        display_chart(data, start_date,end_date, categories, newspaper)
+        display_chart(data, start_date,end_date, categories, newspapers)
             
-def display_chart(data, start_date, end_date, categories, newspaper):
+def display_chart(data, start_date, end_date, categories, newspapers):
         data_multilines = 0
         if len(categories) == 0:
             categories = data.columns[3:-1].to_list()
+            
         if type(categories) == str:
             categories = [categories]
         for categorie in categories:
-            df = data[["month_date", categorie]][(data[categorie] >= dict_thres[newspaper]) & (data["newspaper"] == newspaper)].groupby(["month_date"]).count() / data[["month_date", categorie]][data["newspaper"] == newspaper].groupby(["month_date"]).count()
-            df.index = pd.DatetimeIndex(df.index)
-            df["cat"] = categorie
-            df = df.rename({categorie : "value"}, axis=1)
-            if type(data_multilines) == int:
-                data_multilines = df
-            else: 
-                data_multilines = pd.concat([data_multilines,df],axis=0)
+            for newspaper in newspapers:
+                df = data[["month_date", categorie]][(data[categorie] >= dict_thres[newspaper]) & (data["newspaper"] == newspaper)].groupby(["month_date"]).count() / data[["month_date", categorie]][data["newspaper"] == newspaper].groupby(["month_date"]).count()
+                df.index = pd.DatetimeIndex(df.index)
+                df["newspaper"] = newspaper
+                df["cat"] = categorie
+                df = df.rename({categorie : "value"}, axis=1)
+                if type(data_multilines) == int:
+                    data_multilines = df
+                else: 
+                    data_multilines = pd.concat([data_multilines,df],axis=0)
         
         data_multilines = data_multilines[data_multilines.index <= pd.to_datetime(end_date)]
         data_multilines = data_multilines[data_multilines.index >= pd.to_datetime(start_date)]
         
-        fig = px.line(data_multilines,
+        if len(categories)==1:
+            # data_multilines["event"] = [""]*data_multilines.shape[0]
+            # filter = (data_multilines.index == "2022-02-01") & (data_multilines["cat"].values=="planete")
+            # data_multilines.loc[filter,"event"] = "Rapport GIEC"
+            fig = px.line(data_multilines,
                     labels= {"month_date" : "Year",
                                "value" : "Rate of total publications (%)"},
-                    color = "cat"
+                    color = "cat",
+                    line_dash="newspaper"
                       )
-        fig.update_layout(showlegend=True)
+            fig = add_annotation(fig,data_multilines, categories[0])
+
+        else:
+            fig = px.line(data_multilines,
+                    labels= {"month_date" : "Year",
+                               "value" : "Rate of total publications (%)"},
+                    color = "cat",
+                    line_dash="newspaper"
+                      )
+            
+            fig.update_layout(showlegend=True)
         st.plotly_chart(fig)
+
+def add_annotation(fig,data, categorie):
+    dic_annot = {"planete": [["2018-12-01" , "COP24" ],
+                             ["2021-08-01" , "1st report GIEC" ], 
+                             ["2022-02-01" , "2nd report GIEC" ],
+                            ["2022-04-01" , "3rd report GIEC" ]]}
+    placement = 1.06
+    if categorie not in dic_annot.keys():
+        print("none")
+        return fig
+    
+    for event in dic_annot[categorie]:
+        #try :
+        print(pd.to_datetime(event[0], format='%Y-%m-%d'))
+        fig.add_vline(x=pd.to_datetime(event[0], format='%Y-%m-%d').timestamp()*1000, 
+                    line_dash="dot")
+        fig.add_annotation(
+                x=pd.to_datetime(event[0], format='%Y-%m-%d').timestamp()*1000,
+                y=placement,
+                yref='paper',
+                showarrow=False,
+                text=event[1])
+        # fig.add_annotation(xref="x", yref="y",axref="x", ayref="y",
+        #                         x=event[0],
+        #                         ax=event[0],
+        #                         y= data.loc[event[0]].value,
+        #                         ay = (1+placement)*data.loc[event[0]].value,
+        #                         text=event[1],
+        #                         showarrow=True)
+        #except:
+            #None
+        placement +=0.04
+    return fig
+
 
 def extract_class(probabilities, th=0.05):
     cat = list()
@@ -161,3 +214,4 @@ st.markdown("""
             """)
 main()
 st.markdown("""*:grey[Streamlit App by: Martin Lanchon, Alexandre Pradeilles, Antoine Dargier, Martin Ponchon]*""")
+st.write(data.month_date.values[0])
