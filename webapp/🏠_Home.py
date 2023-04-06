@@ -7,7 +7,7 @@ import numpy as np
 ### IMPORT DATA ###
 
 
-def extract_class(probabilities, th=0.05):
+def extract_class(probabilities, th=0.15):
     cat = list()
     if probabilities[0] >= th:
         cat.append("planete")
@@ -94,7 +94,7 @@ data_radio["talks_about_climate"] = data_radio['predicted_classes'].apply(lambda
 def compute_time_allocated_to_climate_by_show(data_radio):
     by_show_df = pd.pivot_table(data_radio, values=['planete', 'talks_about_climate'], index=['url', 'month_date'], aggfunc={'planete': 'count', 'talks_about_climate': np.sum}, fill_value=0)
     by_show_df = by_show_df.reset_index().rename(columns={'planete':'nb_segments'})
-    by_show_df['proportion_of_time_about_climate'] = by_show_df['talks_about_climate'] / by_show_df['nb_segments']
+    by_show_df['proportion_of_time_about_climate'] = by_show_df['talks_about_climate'] * 100 / by_show_df['nb_segments']
     return by_show_df
 
 
@@ -142,9 +142,12 @@ def main():
         display_chart(data, start_date, end_date, categories, newspapers)
 
     with tab5:
+        st.write("Si le sujet du climat est évoqué dans presque toutes les emissions, il ne représente en moyenne que XX% du temps d'antenne")
         fig = px.histogram(compute_time_allocated_to_climate_by_show(data_radio), 
                             x="proportion_of_time_about_climate",
-                            nbins=30)
+                            title="Climat",
+                            labels={"proportion_of_time_about_climate" : "Part du temps consacré au climat (%)"},
+                            nbins=30).update_layout(yaxis_title="Nombre d'émissions")
         st.plotly_chart(fig)
 
             
