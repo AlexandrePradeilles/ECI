@@ -6,19 +6,69 @@ import numpy as np
 
 ### IMPORT DATA ###
 
+
+def extract_class(probabilities, th=0.05):
+    cat = list()
+    if probabilities[0] >= th:
+        cat.append("planete")
+    if probabilities[1] >= th:
+        cat.append("sport")
+    if probabilities[2] >= th:
+        cat.append("economie")
+    if probabilities[3] >= th:
+        cat.append("arts-stars")
+    if probabilities[4] >= th:
+        cat.append("high-tech")
+    if probabilities[5] >= th:
+        cat.append("politique")
+    if probabilities[6] >= th:
+        cat.append("monde")
+    if probabilities[7] >= th:
+        cat.append("societe")
+    if probabilities[8] >= th:
+        cat.append("faits_divers")
+    if probabilities[9] >= th:
+        cat.append("sante")
+    if probabilities[10] >= th:
+        cat.append("justice")
+    if cat == []:
+        cat.append(dict_classes_inv[np.argmax(probabilities)])
+    return cat
+
+
 @st.cache_data
 def get_data():
+    # Get data for 20 minutes
     data_20 = pd.read_parquet("../data/20minutes.parquet")
-    data_20["newspaper"] = "20 minutes"
+    data_20["medium_name"] = "20 minutes"
+    data_20["medium_type"] = "newspaper"
+    data_20 = data_20.drop('category_id', axis=1).rename(columns={'article_url':'url'})
+    
+    # Get data for Liberation
     data_libe = pd.read_parquet("../data/liberation.parquet")
-    data_libe["newspaper"] = "Liberation"
+    data_libe["medium_name"] = "Liberation"
+    data_libe["medium_type"] = "newspaper"
+    data_libe = data_libe.drop('category_id', axis=1).rename(columns={'article_url':'url'})
+    
+    # Get data for France Inter
+    data_franceinter = pd.read_parquet("../data/franceinter.parquet")
+    data_franceinter["medium_name"] = "France Inter"
+    data_franceinter["medium_type"] = "radio"
 
-    data = pd.concat([data_20, data_libe])
+    data = pd.concat([data_20, data_libe, data_franceinter])
+    
+    # Get predicted classes
+    classes_list = ["planete", "sport", "economie", "arts-stars", "high-tech", "politique", 'monde', "societe", "faits_divers", "sante", "justice"]
+    data["predicted_classes"] = data[classes_list].apply(lambda x: extract_class(x.values), axis=1)
+
     return data
 
-dict_thres = {"20 minutes": 0.2, "Liberation": 0.26}
+
+
+dict_thres = {"20 minutes": 0.2, "Liberation": 0.26, "France Inter": 0.2}
 dict_classes = {'planete': 0, 'sport': 1, 'economie': 2, 'arts-stars': 3, 'high-tech': 4, 'politique': 5, 'monde': 6, 'societe': 7, 'faits_divers': 8, 'sante': 9, 'justice': 10}
 dict_classes_inv = {v:k for (k, v) in dict_classes.items()}
+
 
 if "old_np" not in st.session_state:
     st.session_state.old_np = ''
@@ -27,6 +77,7 @@ PAGES = [
     '🏠 Home',
     '🤓 About us'
 ]
+
 
 st.set_page_config(
     page_title="ECI",
@@ -37,14 +88,15 @@ st.set_page_config(
 
 data = get_data()
 
+
 def main():
     # Note that page title/favicon are set in the __main__ clause below,
     # so they can also be set through the mega multipage app (see ../pandas_app.py).
-    tab1, tab2, tab3, tab4= st.tabs(["Menu", "Methodologie", "Global distribution", "Evolution over time"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Menu", "Méthodologie", "Répartition par sujet", "Evolution au cours du temps"])   #"Evolution au cours du temps, journaux"
     
     with tab3:    
         newspaper = st.selectbox(
-                "Select a newspaper", (data.newspaper.unique()),
+                "Select a newspaper", (data.medium_name.unique()),
                 key=1)
         st.write("Global distribution")
         if newspaper != st.session_state.old_np:
@@ -68,30 +120,32 @@ def main():
         col1, col2 = st.columns(2)
         with col1:
            newspapers = st.multiselect(
-                "Select a newspaper", (data.newspaper.unique()),
-                default=(data.newspaper.unique()),
+                "Select a newspaper", (data.medium_name.unique()),
+                default=(data.medium_name.unique()),
                 key=2
                 )
         st.write("Global distribution")
         with col2:
             categories = st.multiselect(
-                "Select the category", data.columns[3:-1].to_list()
+                "Select the category", dict_classes.keys()
                 )
         
-        display_chart(data, start_date,end_date, categories, newspapers)
+        display_chart(data, start_date, end_date, categories, newspapers)
+
+
             
 def display_chart(data, start_date, end_date, categories, newspapers):
         data_multilines = 0
         if len(categories) == 0:
-            categories = data.columns[3:-1].to_list()
+            categories = dict_classes.keys()
             
         if type(categories) == str:
             categories = [categories]
         for categorie in categories:
             for newspaper in newspapers:
-                df = data[["month_date", categorie]][(data[categorie] >= dict_thres[newspaper]) & (data["newspaper"] == newspaper)].groupby(["month_date"]).count() / data[["month_date", categorie]][data["newspaper"] == newspaper].groupby(["month_date"]).count()
+                df = data[["month_date", categorie]][(data[categorie] >= dict_thres[newspaper]) & (data["medium_name"] == newspaper)].groupby(["month_date"]).count() / data[["month_date", categorie]][data["medium_name"] == newspaper].groupby(["month_date"]).count()
                 df.index = pd.DatetimeIndex(df.index)
-                df["newspaper"] = newspaper
+                df["medium_name"] = newspaper
                 df["cat"] = categorie
                 df = df.rename({categorie : "value"}, axis=1)
                 if type(data_multilines) == int:
@@ -107,23 +161,25 @@ def display_chart(data, start_date, end_date, categories, newspapers):
             # filter = (data_multilines.index == "2022-02-01") & (data_multilines["cat"].values=="planete")
             # data_multilines.loc[filter,"event"] = "Rapport GIEC"
             fig = px.line(data_multilines,
-                    labels= {"month_date" : "Year",
+                    labels= {"month_date" : "Année",
                                "value" : "Rate of total publications (%)"},
                     color = "cat",
-                    line_dash="newspaper"
+                    line_dash="medium_name"
                       )
             fig = add_annotation(fig,data_multilines, categories[0])
 
         else:
             fig = px.line(data_multilines,
-                    labels= {"month_date" : "Year",
+                    labels= {"month_date" : "Année",
                                "value" : "Rate of total publications (%)"},
                     color = "cat",
-                    line_dash="newspaper"
+                    line_dash="medium_name"
                       )
             
             fig.update_layout(showlegend=True)
         st.plotly_chart(fig)
+
+
 
 def add_annotation(fig,data, categorie):
     dic_annot = {"planete": [["2018-12-01" , "COP24" ],
@@ -159,49 +215,23 @@ def add_annotation(fig,data, categorie):
     return fig
 
 
-def extract_class(probabilities, th=0.05):
-    cat = list()
-    if probabilities[0] >= th:
-        cat.append("planete")
-    if probabilities[1] >= th:
-        cat.append("sport")
-    if probabilities[2] >= th:
-        cat.append("economie")
-    if probabilities[3] >= th:
-        cat.append("arts-stars")
-    if probabilities[4] >= th:
-        cat.append("high-tech")
-    if probabilities[5] >= th:
-        cat.append("politique")
-    if probabilities[6] >= th:
-        cat.append("monde")
-    if probabilities[7] >= th:
-        cat.append("societe")
-    if probabilities[8] >= th:
-        cat.append("faits_divers")
-    if probabilities[9] >= th:
-        cat.append("sante")
-    if probabilities[10] >= th:
-        cat.append("justice")
-    if cat == []:
-        cat.append(dict_classes_inv[np.argmax(probabilities)])
-    return cat
-
 def display_distribution(data, newsp):
-    df = data[["planete", "sport", "economie", "arts-stars", "high-tech", "politique", 'monde', "societe", "faits_divers", "sante", "justice"]][data["newspaper"] == newsp]
-    df["predicted_classe"] = df.apply(lambda x: extract_class(x.values), axis=1)
-    df = df.explode("predicted_classe")
-    fig = px.histogram(df,x="predicted_classe",
-                       labels= {"predicted_classe" : "Predicted Class",
+    df = data[data["medium_name"] == newsp]
+    df = df.explode("predicted_classes")
+    fig = px.histogram(df, x="predicted_classes",
+                       labels= {"predicted_classes" : "Predicted Class",
                                "count" : "Number of iterations"})
     st.plotly_chart(fig)
     return df
 
+
 def display_precomputed_distribution(df):
-    fig = px.histogram(df,x="predicted_classe",
-                       labels= {"predicted_classe" : "Predicted Class",
+    fig = px.histogram(df, x="predicted_classes",
+                       labels= {"predicted_classes" : "Predicted Class",
                                "count" : "Number of iterations"})
     st.plotly_chart(fig)
+
+
     
 ### INTRODUCTION ###
 st.title("🌱 Welcome to the Environnemental Communication Index! 🌱")
@@ -214,4 +244,4 @@ st.markdown("""
             """)
 main()
 st.markdown("""*:grey[Streamlit App by: Martin Lanchon, Alexandre Pradeilles, Antoine Dargier, Martin Ponchon]*""")
-st.write(data.month_date.values[0])
+#st.write(data.month_date.values[0])
