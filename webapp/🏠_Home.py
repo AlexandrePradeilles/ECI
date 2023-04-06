@@ -88,12 +88,21 @@ st.set_page_config(
 
 data = get_data()
 
+data_radio = data.loc[data.medium_type == 'radio']
+data_radio["talks_about_climate"] = data_radio['predicted_classes'].apply(lambda classes: 'planete' in classes)
+
+def compute_time_allocated_to_climate_by_show(data_radio):
+    by_show_df = pd.pivot_table(data_radio, values=['planete', 'talks_about_climate'], index=['url', 'month_date'], aggfunc={'planete': 'count', 'talks_about_climate': np.sum}, fill_value=0)
+    by_show_df = by_show_df.reset_index().rename(columns={'planete':'nb_segments'})
+    by_show_df['proportion_of_time_about_climate'] = by_show_df['talks_about_climate'] / by_show_df['nb_segments']
+    return by_show_df
+
+
 
 def main():
     # Note that page title/favicon are set in the __main__ clause below,
     # so they can also be set through the mega multipage app (see ../pandas_app.py).
-    tab1, tab2, tab3, tab4 = st.tabs(["Menu", "Méthodologie", "Répartition par sujet", "Evolution au cours du temps"])   #"Evolution au cours du temps, journaux"
-    
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Menu", "Méthodologie", "Répartition par sujet", "Evolution au cours du temps", "Distribution émissions de radio"])
     with tab3:    
         newspaper = st.selectbox(
                 "Select a newspaper", (data.medium_name.unique()),
@@ -132,6 +141,11 @@ def main():
         
         display_chart(data, start_date, end_date, categories, newspapers)
 
+    with tab5:
+        fig = px.histogram(compute_time_allocated_to_climate_by_show(data_radio), 
+                            x="proportion_of_time_about_climate",
+                            nbins=30)
+        st.plotly_chart(fig)
 
             
 def display_chart(data, start_date, end_date, categories, newspapers):
