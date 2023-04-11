@@ -1,7 +1,10 @@
 # ECI
-Environmental Communication Index, CentraleSupélec x Eleven Strategy \\
-Dargier Antoine, Lanchon Martin, Ponchon Martin, Pradeilles Alexandre \\
-Octobre 2022 - Avril 2023 \\
+Environmental Communication Index, CentraleSupélec x Eleven Strategy
+
+Dargier Antoine, Lanchon Martin, Ponchon Martin, Pradeilles Alexandre
+
+Octobre 2022 - Avril 2023
+
 Using NLP technologies, the objective of this project is to measure the share of environmental topics in the French media (radio and newspapers), and to deploy a freely accessible online monitoring platform.
 
 ## Radio Transcription
