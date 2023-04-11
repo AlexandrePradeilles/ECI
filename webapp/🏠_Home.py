@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import date, datetime
+from dateutil.relativedelta import relativedelta
 import plotly.express as px
 import numpy as np
 
@@ -73,10 +74,10 @@ dict_classes_inv = {v:k for (k, v) in dict_classes.items()}
 if "old_np" not in st.session_state:
     st.session_state.old_np = ''
 
-PAGES = [
-    '🏠 Home',
-    '🤓 About us'
-]
+# PAGES = [
+#     '🏠 Home',
+#     '🤓 About us'
+# ]
 
 
 st.set_page_config(
@@ -86,11 +87,6 @@ st.set_page_config(
 )
 # st.sidebar.title('ECI - Menu')
 
-data = get_data()
-
-data_radio = data.loc[data.medium_type == 'radio']
-data_radio["talks_about_climate"] = data_radio['predicted_classes'].apply(lambda classes: 'planete' in classes)
-
 def compute_time_allocated_to_climate_by_show(data_radio):
     by_show_df = pd.pivot_table(data_radio, values=['planete', 'talks_about_climate'], index=['url', 'month_date'], aggfunc={'planete': 'count', 'talks_about_climate': np.sum}, fill_value=0)
     by_show_df = by_show_df.reset_index().rename(columns={'planete':'nb_segments'})
@@ -98,57 +94,6 @@ def compute_time_allocated_to_climate_by_show(data_radio):
     return by_show_df
 
 
-
-def main():
-    # Note that page title/favicon are set in the __main__ clause below,
-    # so they can also be set through the mega multipage app (see ../pandas_app.py).
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Menu", "Méthodologie", "Répartition par sujet", "Evolution au cours du temps", "Distribution émissions de radio"])
-    with tab3:    
-        newspaper = st.selectbox(
-                "Select a newspaper", (data.medium_name.unique()),
-                key=1)
-        st.write("Global distribution")
-        if newspaper != st.session_state.old_np:
-            st.session_state.distribution = display_distribution(data, newspaper)
-            st.session_state.old_np = newspaper
-        else:
-            display_precomputed_distribution(st.session_state.distribution)
-       
-        
-    with tab4:  
-        max_date = datetime.strptime(data.month_date.max(), '%Y-%m').date()
-        min_date = datetime.strptime(data.month_date.min(), '%Y-%m').date()
-        dates = st.slider(
-        "Select date:",
-        min_value=min_date,
-        value=(min_date, max_date),
-        max_value=max_date,
-        format="MMM, YYYY")
-            
-        start_date, end_date = dates
-        col1, col2 = st.columns(2)
-        with col1:
-           newspapers = st.multiselect(
-                "Select a newspaper", (data.medium_name.unique()),
-                default=(data.medium_name.unique()),
-                key=2
-                )
-        st.write("Global distribution")
-        with col2:
-            categories = st.multiselect(
-                "Select the category", dict_classes.keys()
-                )
-        
-        display_chart(data, start_date, end_date, categories, newspapers)
-
-    with tab5:
-        st.write("Si le sujet du climat est évoqué dans presque toutes les emissions, il ne représente en moyenne que XX% du temps d'antenne")
-        fig = px.histogram(compute_time_allocated_to_climate_by_show(data_radio), 
-                            x="proportion_of_time_about_climate",
-                            title="Climat",
-                            labels={"proportion_of_time_about_climate" : "Part du temps consacré au climat (%)"},
-                            nbins=30).update_layout(yaxis_title="Nombre d'émissions")
-        st.plotly_chart(fig)
 
             
 def display_chart(data, start_date, end_date, categories, newspapers):
@@ -237,16 +182,124 @@ def display_distribution(data, newsp):
     df = df.explode("predicted_classes")
     fig = px.histogram(df, x="predicted_classes",
                        labels= {"predicted_classes" : "Predicted Class",
-                               "count" : "Number of iterations"})
+                               "count" : "Number of iterations"},
+                       title='Topics covered by the media (in #)')
     st.plotly_chart(fig)
     return df
+
+
+def display_pie(data, newsp):
+    df = data[data["medium_name"] == newsp]
+    df = df.explode("predicted_classes")
+    fig = px.pie(df,
+                 values=df.predicted_classes.value_counts().values,
+                 names=df.predicted_classes.value_counts().index,
+                 title='Topics covered by the media (in %)')
+    st.plotly_chart(fig)
 
 
 def display_precomputed_distribution(df):
     fig = px.histogram(df, x="predicted_classes",
                        labels= {"predicted_classes" : "Predicted Class",
-                               "count" : "Number of iterations"})
+                               "count" : "Number of iterations"},
+                       title='Topics covered by the media (in #)')
     st.plotly_chart(fig)
+
+
+def display_precomputed_pie(df):
+    fig = px.pie(df,
+                 values=df.predicted_classes.value_counts().values,
+                 names=df.predicted_classes.value_counts().index,
+                 title='Topics covered by the media (in %)')
+
+    st.plotly_chart(fig)
+
+
+def get_metrics(data):
+    df_metric = data.copy()
+    df_metric =  df_metric.explode("predicted_classes")
+    df_metric["year"] = pd.to_datetime(df_metric.month_date, format = '%Y-%m').dt.year
+    current_month = (datetime.strptime(df_metric.month_date.max(),"%Y-%m")- relativedelta(months=1)).strftime("%Y-%m")
+    last_month = (datetime.strptime(df_metric.month_date.max(),"%Y-%m")- relativedelta(months=2)).strftime("%Y-%m")
+    current_month_rate = df_metric[df_metric.month_date ==current_month].predicted_classes.value_counts().planete/df_metric[df_metric.month_date ==current_month].predicted_classes.value_counts().sum()
+    change = np.round((df_metric[df_metric.month_date ==current_month].predicted_classes.value_counts().planete - df_metric[df_metric.month_date ==last_month].predicted_classes.value_counts().planete)/df_metric[df_metric.month_date ==current_month].predicted_classes.value_counts().sum(), 3)
+    
+    nb_articles = "{:,}".format(data.loc[data.medium_type == 'newspaper'].shape[0])
+    broad_time = "{:,} hours".format(int(data.loc[data.medium_type == 'radio'].shape[0]*5/60))
+    climate_rate = "{:.0%}".format(np.round(current_month_rate,2))
+    climate_change = "{:.0%}".format(change)
+    return nb_articles, broad_time, climate_rate, climate_change
+
+
+def main():
+    # Note that page title/favicon are set in the __main__ clause below,
+    # so they can also be set through the mega multipage app (see ../pandas_app.py).
+    
+    data = get_data()
+    data_radio = data.loc[data.medium_type == 'radio']
+    data_radio["talks_about_climate"] = data_radio['predicted_classes'].apply(lambda classes: 'planete' in classes)
+
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["🌱 ECI", "🛠️ Méthodologie", "📊 Répartition par sujet", "📈 Evolution au cours du temps", "📊 Distribution émissions de radio"])
+    
+    with tab1:
+        col11, col12, col13 = st.columns(3)
+        nb_articles, broad_time, climate_rate, climate_change = get_metrics(data)
+        with col11:
+            st.metric("Number of articles", nb_articles)
+        with col12:
+            st.metric("Available broadcast time", broad_time)
+        with col13:
+            st.metric("Climate communication rate current month", climate_rate, climate_change)
+    
+    
+    with tab3:    
+        newspaper = st.selectbox(
+                "Select a newspaper", (data.medium_name.unique()),
+                key=1)
+        st.write("Global distribution")
+        if newspaper != st.session_state.old_np:
+            st.session_state.distribution = display_distribution(data, newspaper)
+            display_pie(data, newspaper)
+            st.session_state.old_np = newspaper
+        else:
+            display_precomputed_distribution(st.session_state.distribution)
+            display_precomputed_pie(st.session_state.distribution)
+       
+        
+    with tab4:  
+        max_date = datetime.strptime(data.month_date.max(), '%Y-%m').date()
+        min_date = datetime.strptime(data.month_date.min(), '%Y-%m').date()
+        dates = st.slider(
+        "Select date:",
+        min_value=min_date,
+        value=(min_date, max_date),
+        max_value=max_date,
+        format="MMM, YYYY")
+            
+        start_date, end_date = dates
+        col1, col2 = st.columns(2)
+        with col1:
+           newspapers = st.multiselect(
+                "Select a newspaper", (data.medium_name.unique()),
+                default=(data.medium_name.unique()),
+                key=2
+                )
+        st.write("Global distribution")
+        with col2:
+            categories = st.multiselect(
+                "Select the category", dict_classes.keys()
+                )
+        
+        display_chart(data, start_date, end_date, categories, newspapers)
+
+    with tab5:
+        st.write("Si le sujet du climat est évoqué dans presque toutes les emissions, il ne représente en moyenne que XX% du temps d'antenne")
+        fig = px.histogram(compute_time_allocated_to_climate_by_show(data_radio), 
+                            x="proportion_of_time_about_climate",
+                            title="Climat",
+                            labels={"proportion_of_time_about_climate" : "Part du temps consacré au climat (%)"},
+                            nbins=30).update_layout(yaxis_title="Nombre d'émissions")
+        st.plotly_chart(fig)
 
 
     
