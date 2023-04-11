@@ -1,4 +1,4 @@
-#Radio Transcription stream
+# Radio Transcription stream
 
 Folder contrains:
 * audios: folder to store the mp3 of emissions
