@@ -1,7 +1,7 @@
 # ECI
 Environmental Communication Index
 
-## Radio Transcrption
+## Radio Transcription
 The file radio contains all the code used for the transcription of radio emissions. More developped code files can be found in the feature/stream_radio branch
 
 ## Text Classification
