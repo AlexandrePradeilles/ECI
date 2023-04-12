@@ -7,3 +7,4 @@ scrapping.ipynb
 *.npy
 __pycache__
 t.ipynb
+*.png
