@@ -8,33 +8,21 @@ import numpy as np
 ### IMPORT DATA ###
 
 
-def extract_class(probabilities, th=0.15):
-    cat = list()
-    if probabilities[0] >= th:
-        cat.append("planete")
-    if probabilities[1] >= th:
-        cat.append("sport")
-    if probabilities[2] >= th:
-        cat.append("economie")
-    if probabilities[3] >= th:
-        cat.append("arts-stars")
-    if probabilities[4] >= th:
-        cat.append("high-tech")
-    if probabilities[5] >= th:
-        cat.append("politique")
-    if probabilities[6] >= th:
-        cat.append("monde")
-    if probabilities[7] >= th:
-        cat.append("societe")
-    if probabilities[8] >= th:
-        cat.append("faits_divers")
-    if probabilities[9] >= th:
-        cat.append("sante")
-    if probabilities[10] >= th:
-        cat.append("justice")
-    if cat == []:
-        cat.append(dict_classes_inv[np.argmax(probabilities)])
-    return cat
+def extract_class(row, classes_list, threshold=0.15):
+    # Keep only the classes with prob > threshold
+    res_dict = {col: row[col] for col in classes_list if row[col] > threshold}
+
+    if res_dict == {}:
+        return [col for col in classes_list if row[col] == row.max]
+    else:
+        # return list with classes by decreasing order of probability
+        if row['medium_type'] == 'newspaper':
+            return sorted(res_dict, key=res_dict.get, reverse=True)
+        if row['medium_type'] == 'radio':
+            res_list = sorted(res_dict, key=res_dict.get, reverse=True)
+            if 'planete' in res_list and res_list[0] != 'planete':
+                res_list.remove('planete')
+            return res_list
 
 
 @st.cache_data
@@ -62,7 +50,7 @@ def get_data():
     
     # Get predicted classes
     classes_list = ["planete", "sport", "economie", "arts-stars", "high-tech", "politique", 'monde', "societe", "faits_divers", "sante", "justice"]
-    data["predicted_classes"] = data[classes_list].apply(lambda x: extract_class(x.values), axis=1)
+    data["predicted_classes"] = data.apply(lambda row: extract_class(row, classes_list), axis=1)
 
     return data
 
@@ -128,8 +116,7 @@ def display_chart(data, start_date, end_date, categories, newspapers):
                     labels= {"month_date" : "Année",
                                "value" : "Rate of total publications (%)"},
                     color = "cat",
-                    line_dash="medium_name"
-                      )
+                    line_dash="medium_name").update_layout(yaxis_title="Rate of total publications (%)")
             fig = add_annotation(fig,data_multilines, categories[0])
 
         else:
@@ -137,11 +124,10 @@ def display_chart(data, start_date, end_date, categories, newspapers):
                     labels= {"month_date" : "Année",
                                "value" : "Rate of total publications (%)"},
                     color = "cat",
-                    line_dash="medium_name"
-                      )
+                    line_dash="medium_name").update_layout(yaxis_title="Rate of total publications (%)")
             
             fig.update_layout(showlegend=True)
-        st.plotly_chart(fig)
+        st.plotly_chart(fig, use_container_width=True)
 
 
 
@@ -185,8 +171,8 @@ def display_distribution(data, newsp):
     fig = px.histogram(df, x="predicted_classes",
                        labels= {"predicted_classes" : "Predicted Class",
                                "count" : "Number of iterations"},
-                       title='Topics covered by the media (in #)')
-    st.plotly_chart(fig)
+                       title='Topics covered by the media (in #)').update_layout(yaxis_title="Number of iterations")
+    st.plotly_chart(fig, use_container_width=True)
     return df
 
 
@@ -197,15 +183,15 @@ def display_pie(data, newsp):
                  values=df.predicted_classes.value_counts().values,
                  names=df.predicted_classes.value_counts().index,
                  title='Topics covered by the media (in %)')
-    st.plotly_chart(fig)
+    st.plotly_chart(fig, use_container_width=True)
 
 
 def display_precomputed_distribution(df):
     fig = px.histogram(df, x="predicted_classes",
                        labels= {"predicted_classes" : "Predicted Class",
                                "count" : "Number of iterations"},
-                       title='Topics covered by the media (in #)')
-    st.plotly_chart(fig)
+                       title='Topics covered by the media (in #)').update_layout(yaxis_title="Number of iterations")
+    st.plotly_chart(fig, use_container_width=True)
 
 
 def display_precomputed_pie(df):
@@ -214,7 +200,7 @@ def display_precomputed_pie(df):
                  names=df.predicted_classes.value_counts().index,
                  title='Topics covered by the media (in %)')
 
-    st.plotly_chart(fig)
+    st.plotly_chart(fig, use_container_width=True)
 
 
 def get_metrics(data):
@@ -241,9 +227,16 @@ def main():
     data_radio = data.loc[data.medium_type == 'radio']
     data_radio["talks_about_climate"] = data_radio['predicted_classes'].apply(lambda classes: 'planete' in classes)
 
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["🌱 ECI", "🛠️ Méthodologie", "📊 Répartition par sujet", "📈 Evolution au cours du temps", "📊 Distribution émissions de radio"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["🌱 ECI", "🛠️ Methodology", "📊 Breakdown by topic", "📈 Temporal Evolution", "📊 Distribution of radio shows"])
     
     with tab1:
+        st.markdown("""
+             Given the emergency of the Climate Crisis, climate-related communication is more important than ever. This topic is still underrepresented in the media, leading to a recent push for an Environmental Journalism Charter.
+         """)
+        st.markdown("""
+             This project aims at assessing quantity, quality and relevance of communication on climate change
+             """)
+        st.markdown("--------")
         col11, col12, col13 = st.columns(3)
         nb_articles, broad_time, climate_rate, climate_change = get_metrics(data)
         with col11:
@@ -295,25 +288,21 @@ def main():
         display_chart(data, start_date, end_date, categories, newspapers)
 
     with tab5:
-        st.write("Si le sujet du climat est évoqué dans presque toutes les emissions, il ne représente en moyenne que XX% du temps d'antenne")
-        fig = px.histogram(compute_time_allocated_to_climate_by_show(data_radio), 
+        by_show_df = compute_time_allocated_to_climate_by_show(data_radio)
+        st.markdown("If the climate topic is brought up in virtually every show , it only represents on average {} % of air time in a news show".format(round(by_show_df['proportion_of_time_about_climate'].mean())))
+        fig = px.histogram(by_show_df, 
                             x="proportion_of_time_about_climate",
-                            title="Climat",
-                            labels={"proportion_of_time_about_climate" : "Part du temps consacré au climat (%)"},
-                            nbins=30).update_layout(yaxis_title="Nombre d'émissions")
-        st.plotly_chart(fig)
+                            title="Climate topic in radio shows",
+                            labels={"proportion_of_time_about_climate" : "Share of air time dedicated to climate (%)"},
+                            nbins=30).update_layout(yaxis_title="Number of shows")
+        st.plotly_chart(fig, use_container_width=True)
 
 
     
 ### INTRODUCTION ###
-st.title("🌱 Welcome to the Environnemental Communication Index! 🌱")
+st.title("🌱 Environmental Communication Index 🌱")
 
-st.markdown("""
-            Given the emergency of the Climate Crisis, Climate Related Communicationis more important than ever. This topic is still underrepresented in the media, leading to a recent push for an Environmental Journalism Charter.
-        """)
-st.markdown("""
-            This project aims at assessing quantity, quality and relevance of communication on climate change
-            """)
+
 main()
 st.markdown("""*:grey[Streamlit App by: Martin Lanchon, Alexandre Pradeilles, Antoine Dargier, Martin Ponchon]*""")
 #st.write(data.month_date.values[0])
