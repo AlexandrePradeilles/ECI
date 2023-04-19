@@ -243,7 +243,7 @@ def main():
             st.metric("Climate communication rate current month", climate_rate, climate_change)
     
     with tab2: # Methodology
-        image = Image.open('webapp/Methodo.png')
+        image = Image.open('Methodo.png')
         st.image(image, caption='Methodology overview', use_column_width=True)
     
     with tab3: # Breakdown by topic
