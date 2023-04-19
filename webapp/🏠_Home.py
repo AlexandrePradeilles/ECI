@@ -40,7 +40,9 @@ def extract_class(probabilities, th=0.15):
 @st.cache_data
 def get_data():
     # Get data for 20 minutes
-    data_20 = pd.read_parquet("../data/20minutes.parquet")
+    data_20_1 = pd.read_parquet("../data/20minutes_part1.parquet")
+    data_20_2 = pd.read_parquet("../data/20minutes_part2.parquet")
+    data_20 = pd.concat([data_20_1, data_20_2])
     data_20["medium_name"] = "20 minutes"
     data_20["medium_type"] = "newspaper"
     data_20 = data_20.drop('category_id', axis=1).rename(columns={'article_url':'url'})
