@@ -4,9 +4,11 @@ from datetime import date, datetime
 from dateutil.relativedelta import relativedelta
 import plotly.express as px
 import numpy as np
+from PIL import Image
+
+
 
 ### IMPORT DATA ###
-
 
 def extract_class(row, classes_list, threshold=0.15):
     # Keep only the classes with prob > threshold
@@ -20,8 +22,8 @@ def extract_class(row, classes_list, threshold=0.15):
             return sorted(res_dict, key=res_dict.get, reverse=True)
         if row['medium_type'] == 'radio':
             res_list = sorted(res_dict, key=res_dict.get, reverse=True)
-            if 'planete' in res_list and res_list[0] != 'planete':
-                res_list.remove('planete')
+            if 'Planet' in res_list and res_list[0] != 'Planet':
+                res_list.remove('Planet')
             return res_list
 
 
@@ -47,27 +49,23 @@ def get_data():
     data_franceinter["medium_type"] = "radio"
 
     data = pd.concat([data_20, data_libe, data_franceinter])
+    mapping_classes_names = {"planete":"Planet", "sport":"Sport", "economie":"Economy", "arts-stars":"Arts-Stars", "high-tech":"High-Tech", "politique":"Politics", 'monde':"World", "societe":"Society", "faits_divers":"Miscellaneous", "sante":"Health", "justice":"Justice"}
+    data.rename(columns=mapping_classes_names, inplace=True)
     
     # Get predicted classes
-    classes_list = ["planete", "sport", "economie", "arts-stars", "high-tech", "politique", 'monde', "societe", "faits_divers", "sante", "justice"]
+    classes_list = mapping_classes_names.values()
     data["predicted_classes"] = data.apply(lambda row: extract_class(row, classes_list), axis=1)
 
     return data
 
 
-
 dict_thres = {"20 minutes": 0.2, "Liberation": 0.26, "France Inter": 0.2}
-dict_classes = {'planete': 0, 'sport': 1, 'economie': 2, 'arts-stars': 3, 'high-tech': 4, 'politique': 5, 'monde': 6, 'societe': 7, 'faits_divers': 8, 'sante': 9, 'justice': 10}
+dict_classes = {'Planet': 0, 'Sport': 1, 'Economy': 2, 'Arts-Stars': 3, 'High-Tech': 4, 'Politics': 5, 'World': 6, 'Society': 7, 'Miscellaneous': 8, 'Health': 9, 'Justice': 10}
 dict_classes_inv = {v:k for (k, v) in dict_classes.items()}
 
 
 if "old_np" not in st.session_state:
     st.session_state.old_np = ''
-
-# PAGES = [
-#     '🏠 Home',
-#     '🤓 About us'
-# ]
 
 
 st.set_page_config(
@@ -75,14 +73,13 @@ st.set_page_config(
     page_icon="🌱",
     layout="wide"
 )
-# st.sidebar.title('ECI - Menu')
+
 
 def compute_time_allocated_to_climate_by_show(data_radio):
-    by_show_df = pd.pivot_table(data_radio, values=['planete', 'talks_about_climate'], index=['url', 'month_date'], aggfunc={'planete': 'count', 'talks_about_climate': np.sum}, fill_value=0)
-    by_show_df = by_show_df.reset_index().rename(columns={'planete':'nb_segments'})
+    by_show_df = pd.pivot_table(data_radio, values=['Planet', 'talks_about_climate'], index=['url', 'month_date'], aggfunc={'Planet': 'count', 'talks_about_climate': np.sum}, fill_value=0)
+    by_show_df = by_show_df.reset_index().rename(columns={'Planet':'nb_segments'})
     by_show_df['proportion_of_time_about_climate'] = by_show_df['talks_about_climate'] * 100 / by_show_df['nb_segments']
     return by_show_df
-
 
 
             
@@ -97,8 +94,8 @@ def display_chart(data, start_date, end_date, categories, newspapers):
             for newspaper in newspapers:
                 df = data[["month_date", categorie]][(data[categorie] >= dict_thres[newspaper]) & (data["medium_name"] == newspaper)].groupby(["month_date"]).count() / data[["month_date", categorie]][data["medium_name"] == newspaper].groupby(["month_date"]).count()
                 df.index = pd.DatetimeIndex(df.index)
-                df["medium_name"] = newspaper
-                df["cat"] = categorie
+                df["Medium"] = newspaper
+                df["Category"] = categorie
                 df = df.rename({categorie : "value"}, axis=1)
                 if type(data_multilines) == int:
                     data_multilines = df
@@ -115,16 +112,16 @@ def display_chart(data, start_date, end_date, categories, newspapers):
             fig = px.line(data_multilines,
                     labels= {"month_date" : "Année",
                                "value" : "Rate of total publications (%)"},
-                    color = "cat",
-                    line_dash="medium_name").update_layout(yaxis_title="Rate of total publications (%)")
+                    color = "Category",
+                    line_dash="Medium").update_layout(yaxis_title="Rate of total publications (%)")
             fig = add_annotation(fig,data_multilines, categories[0])
 
         else:
             fig = px.line(data_multilines,
                     labels= {"month_date" : "Année",
                                "value" : "Rate of total publications (%)"},
-                    color = "cat",
-                    line_dash="medium_name").update_layout(yaxis_title="Rate of total publications (%)")
+                    color = "Category",
+                    line_dash="Medium").update_layout(yaxis_title="Rate of total publications (%)")
             
             fig.update_layout(showlegend=True)
         st.plotly_chart(fig, use_container_width=True)
@@ -132,7 +129,7 @@ def display_chart(data, start_date, end_date, categories, newspapers):
 
 
 def add_annotation(fig,data, categorie):
-    dic_annot = {"planete": [["2018-12-01" , "COP24" ],
+    dic_annot = {"Planet": [["2018-12-01" , "COP24" ],
                              ["2021-08-01" , "1st report GIEC" ], 
                              ["2022-02-01" , "2nd report GIEC" ],
                             ["2022-04-01" , "3rd report GIEC" ]]}
@@ -145,7 +142,8 @@ def add_annotation(fig,data, categorie):
         #try :
         print(pd.to_datetime(event[0], format='%Y-%m-%d'))
         fig.add_vline(x=pd.to_datetime(event[0], format='%Y-%m-%d').timestamp()*1000, 
-                    line_dash="dot")
+                    line_dash="dot",
+                    line_color="white")
         fig.add_annotation(
                 x=pd.to_datetime(event[0], format='%Y-%m-%d').timestamp()*1000,
                 y=placement,
@@ -209,8 +207,8 @@ def get_metrics(data):
     df_metric["year"] = pd.to_datetime(df_metric.month_date, format = '%Y-%m').dt.year
     current_month = (datetime.strptime(df_metric.month_date.max(),"%Y-%m")- relativedelta(months=1)).strftime("%Y-%m")
     last_month = (datetime.strptime(df_metric.month_date.max(),"%Y-%m")- relativedelta(months=2)).strftime("%Y-%m")
-    current_month_rate = df_metric[df_metric.month_date ==current_month].predicted_classes.value_counts().planete/df_metric[df_metric.month_date ==current_month].predicted_classes.value_counts().sum()
-    change = np.round((df_metric[df_metric.month_date ==current_month].predicted_classes.value_counts().planete - df_metric[df_metric.month_date ==last_month].predicted_classes.value_counts().planete)/df_metric[df_metric.month_date ==current_month].predicted_classes.value_counts().sum(), 3)
+    current_month_rate = df_metric[df_metric.month_date ==current_month].predicted_classes.value_counts().Planet/df_metric[df_metric.month_date ==current_month].predicted_classes.value_counts().sum()
+    change = np.round((df_metric[df_metric.month_date ==current_month].predicted_classes.value_counts().Planet - df_metric[df_metric.month_date ==last_month].predicted_classes.value_counts().Planet)/df_metric[df_metric.month_date ==current_month].predicted_classes.value_counts().sum(), 3)
     
     nb_articles = "{:,}".format(data.loc[data.medium_type == 'newspaper'].shape[0])
     broad_time = "{:,} hours".format(int(data.loc[data.medium_type == 'radio'].shape[0]*5/60))
@@ -220,21 +218,19 @@ def get_metrics(data):
 
 
 def main():
-    # Note that page title/favicon are set in the __main__ clause below,
-    # so they can also be set through the mega multipage app (see ../pandas_app.py).
-    
     data = get_data()
     data_radio = data.loc[data.medium_type == 'radio']
-    data_radio["talks_about_climate"] = data_radio['predicted_classes'].apply(lambda classes: 'planete' in classes)
+    data_radio["talks_about_climate"] = data_radio['predicted_classes'].apply(lambda classes: 'Planet' in classes)
 
     tab1, tab2, tab3, tab4, tab5 = st.tabs(["🌱 ECI", "🛠️ Methodology", "📊 Breakdown by topic", "📈 Temporal Evolution", "📊 Distribution of radio shows"])
     
-    with tab1:
+    with tab1: # Intro to ECI project
         st.markdown("""
              Given the emergency of the Climate Crisis, climate-related communication is more important than ever. This topic is still underrepresented in the media, leading to a recent push for an Environmental Journalism Charter.
          """)
         st.markdown("""
-             This project aims at assessing quantity, quality and relevance of communication on climate change
+             This project aims at quantifying the share of environmental topics in the French media. To do this, we used an Open API from Radio France and scraping to collect radio broadcasts, which we transcribed using the Wav2Vec2.0 model, on an Azure virtual machine. 
+             In parallel, we scraped millions of press articles, and developed a text classification tool based on CamemBERT, achieving $92\%$ accuracy. We developed a streamlit visualization platform to highlight these results and allow everyone to follow the evolution of environmental topics.
              """)
         st.markdown("--------")
         col11, col12, col13 = st.columns(3)
@@ -246,8 +242,11 @@ def main():
         with col13:
             st.metric("Climate communication rate current month", climate_rate, climate_change)
     
+    with tab2: # Methodology
+        image = Image.open('webapp/Methodo.png')
+        st.image(image, caption='Methodology overview', use_column_width=True)
     
-    with tab3:    
+    with tab3: # Breakdown by topic
         newspaper = st.selectbox(
                 "Select a newspaper", (data.medium_name.unique()),
                 key=1)
@@ -261,7 +260,7 @@ def main():
             display_precomputed_pie(st.session_state.distribution)
        
         
-    with tab4:  
+    with tab4: # Temporal Evolution
         max_date = datetime.strptime(data.month_date.max(), '%Y-%m').date()
         min_date = datetime.strptime(data.month_date.min(), '%Y-%m').date()
         dates = st.slider(
@@ -277,32 +276,37 @@ def main():
            newspapers = st.multiselect(
                 "Select a newspaper", (data.medium_name.unique()),
                 default=(data.medium_name.unique()),
-                key=2
-                )
-        st.write("Global distribution")
+                key=2)
         with col2:
             categories = st.multiselect(
-                "Select the category", dict_classes.keys()
-                )
+                "Select the category", dict_classes.keys())
         
         display_chart(data, start_date, end_date, categories, newspapers)
 
-    with tab5:
+    with tab5: # Distribution of radio shows
         by_show_df = compute_time_allocated_to_climate_by_show(data_radio)
-        st.markdown("If the climate topic is brought up in virtually every show , it only represents on average {} % of air time in a news show".format(round(by_show_df['proportion_of_time_about_climate'].mean())))
+        st.markdown("Despite being brought up in most shows, the climate topic only represents on average {} % of air time in a news show.".format(round(by_show_df['proportion_of_time_about_climate'].mean())))
+        st.markdown("In particular, three quarters of shows dedicate less than {} % of air time to that topic.".format(round(by_show_df['proportion_of_time_about_climate'].quantile(.75))))
         fig = px.histogram(by_show_df, 
                             x="proportion_of_time_about_climate",
                             title="Climate topic in radio shows",
-                            labels={"proportion_of_time_about_climate" : "Share of air time dedicated to climate (%)"},
-                            nbins=30).update_layout(yaxis_title="Number of shows")
+                            labels={"proportion_of_time_about_climate" : "Share of air time dedicated to climate topic (%)"},
+                            nbins=20).update_layout(yaxis_title="Number of shows")
         st.plotly_chart(fig, use_container_width=True)
 
 
     
 ### INTRODUCTION ###
 st.title("🌱 Environmental Communication Index 🌱")
-
-
 main()
-st.markdown("""*:grey[Streamlit App by: Martin Lanchon, Alexandre Pradeilles, Antoine Dargier, Martin Ponchon]*""")
-#st.write(data.month_date.values[0])
+st.markdown("*:grey[Streamlit App by: Martin Lanchon, Alexandre Pradeilles, Antoine Dargier, Martin Ponchon]*")
+
+# Hide style
+hide_st_style = """
+            <style>
+            #MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            header {visibility: hidden;}
+            </style>
+            """
+st.markdown(hide_st_style, unsafe_allow_html=True)
